@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  .output {
+    white-space: pre-wrap;
+  }
+</style>
+<title>Custom Input Component Example</title>
+</head>
+<body>
+  <input id="textInput" type="text" placeholder="Type here..." oninput="handleInput(this.value)">
+  <div id="output" class="output"></div>
+  <script>
+    const wordColors = {
+      cookie: 'blue',
+      banana: 'green',
+      apple: 'red',
+      // Add more word-color mappings here
+    };
+
+    const outputElement = document.getElementById('output');
+    let alarmTimeouts = [];
+
+    function handleInput(value) {
+      clearTimeoutAlarms();
+
+      const words = value.split(/\s+/);
+
+      const formattedWords = words.map(word => {
+        const lowerCaseWord = word.toLowerCase();
+        if (wordColors.hasOwnProperty(lowerCaseWord)) {
+          const color = wordColors[lowerCaseWord];
+          return `<span style="color: ${color};">${word}</span>`;
+        } else if (/^\d+[hms]?$|^\d+[hms]\d+$/i.test(word)) {
+          const { hours, minutes, seconds } = parseTimeInput(word);
+          if (!isNaN(hours) || !isNaN(minutes) || !isNaN(seconds)) {
+            const name = getTimerName(words);
+            setAlarm(hours, minutes, seconds, name);
+            return word;
+          }
+        }
+        return word;
+      });
+
+      outputElement.innerHTML = formattedWords.join(' ');
+
+      // Log total number of alarms
+      console.log(`Total alarms: ${alarmTimeouts.length}`);
+    }
+
+    function parseTimeInput(word) {
+      const match = word.match(/^(\d+)([hms]?)(\d+)?$/i);
+      if (match) {
+        const value1 = parseInt(match[1]);
+        const unit = match[2].toLowerCase();
+        const value2 = match[3] ? parseInt(match[3]) : 0;
+        if (unit === 'h') {
+          return { hours: value1, minutes: value2, seconds: 0 };
+        } else if (unit === 'm') {
+          return { hours: 0, minutes: value1, seconds: value2 };
+        } else if (unit === 's') {
+          return { hours: 0, minutes: 0, seconds: value1 };
+        }
+      }
+      return { hours: NaN, minutes: NaN, seconds: NaN };
+    }
+
+    function getTimerName(words) {
+      const timerNameWords = words.slice(1); // Remove the first word (e.g., "1h30")
+      return timerNameWords.join(' ');
+    }
+
+    function setAlarm(hours, minutes, seconds, name) {
+      const milliseconds = calculateMilliseconds(hours, minutes, seconds);
+      console.log(`Alarm set for ${hours} hours ${minutes} minutes and ${seconds} seconds (${milliseconds} milliseconds): ${name}`);
+      const now = new Date();
+      const alarmEndTimestamp = now.getTime() + milliseconds;
+
+      const alarmTimeout = setInterval(() => {
+        const currentTime = new Date().getTime();
+        const remainingTime = alarmEndTimestamp - currentTime;
+
+        if (remainingTime > 0) {
+          const remainingHours = Math.floor(remainingTime / (60 * 60 * 1000));
+          const remainingMinutes = Math.floor((remainingTime % (60 * 60 * 1000)) / (60 * 1000));
+          const remainingSeconds = Math.floor((remainingTime % (60 * 1000)) / 1000);
+          console.log(`Time remaining for "${name}": ${remainingHours} hours ${remainingMinutes} minutes ${remainingSeconds} seconds`);
+        } else {
+          console.log(`ALARM! Time is up for "${name}".`);
+          clearInterval(alarmTimeout);
+          removeAlarm(alarmTimeout);
+        }
+      }, 1000); // Update every second
+
+      alarmTimeouts.push(alarmTimeout);
+    }
+
+    function calculateMilliseconds(hours, minutes, seconds) {
+      return hours * 60 * 60 * 1000 + minutes * 60 * 1000 + seconds * 1000;
+    }
+
+    function removeAlarm(alarmTimeout) {
+      const index = alarmTimeouts.indexOf(alarmTimeout);
+      if (index !== -1) {
+        alarmTimeouts.splice(index, 1);
+      }
+
+      // Log total number of alarms
+      console.log(`Total alarms: ${alarmTimeouts.length}`);
+    }
+
+    function clearTimeoutAlarms() {
+      alarmTimeouts.forEach(alarmTimeout => {
+        clearInterval(alarmTimeout);
+      });
+      alarmTimeouts = [];
+
+      // Log total number of alarms
+      console.log(`Total alarms: ${alarmTimeouts.length}`);
+    }
+  </script>
+</body>
+</html>
