@@ -1,164 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        .output {
-            white-space: pre-wrap;
-        }
-
-        .remaining-time {
-            color: green;
-        }
-    </style>
     <title>Custom Input Component Example</title>
+    <style>
+        #output { white-space: pre-wrap; }
+        .remaining-time { color: green; }
+    </style>
 </head>
-
 <body>
     <input id="textInput" type="text" placeholder="Type here..." onkeyup="handleKeyUp(event)">
-    <div id="output" class="output"></div>
+    <div id="output"></div>
     <ul id="timerList"></ul>
     <script>
-        const MAX_ALARMS = 10;
-        const timerListElement = document.getElementById('timerList');
-        let currentAlarms = 0;
+        const MAX_ALARMS = 10, timerList = document.getElementById('timerList');
+        let alarms = 0;
 
-        function handleKeyUp(event) {
-            if (event.key === 'Enter' && event.target.value.trim()) {
-                if (currentAlarms >= MAX_ALARMS) {
-                    alert('Maximum alarms reached! Please wait for an alarm to end or clear some.');
-                    event.target.value = '';
-                    return;
-                }
-
-                const inputValue = event.target.value;
-                const words = inputValue.split(/\s+/);
-
-                if (/^\d+[hms]?$|^\d+[hms]\d+$/i.test(words[0])) {
-                    const { hours, minutes, seconds } = parseTimeInput(words[0]);
-                    if (!isNaN(hours) && !isNaN(minutes) && !isNaN(seconds)) {
-                        const name = getTimerName(words);
-                        addTimer(hours, minutes, seconds, name);
-                        currentAlarms++;
-                    }
-                    event.target.value = '';
-                    return;
-                } else if (/^\d+:\d+[ap]m$/i.test(words[0])) {
-                    const timeParts = words[0].match(/^(\d+):(\d+)([ap]m)$/i);
-                    if (timeParts) {
-                        const hours = parseInt(timeParts[1]);
-                        const minutes = parseInt(timeParts[2]);
-                        const isPM = timeParts[3].toLowerCase() === 'pm';
-                        const name = getTimerName(words);
-                        addTimerWithTime(hours, minutes, isPM, name);
-                        currentAlarms++;
-                    }
-                    event.target.value = '';
-                    return;
-                }
-
-                const formattedWords = words.map(word => {
-                    const lowerCaseWord = word.toLowerCase();
-                    if (wordColors.hasOwnProperty(lowerCaseWord)) {
-                        const color = wordColors[lowerCaseWord];
-                        return `<span style="color: ${color};">${word}</span>`;
-                    }
-                    return word;
-                });
-
-                document.getElementById('output').innerHTML = formattedWords.join(' ');
-                event.target.value = '';
-            }
-        }
-
-        function parseTimeInput(word) {
+        const parseTime = (word) => {
             const match = word.match(/^(\d+)([hms]?)(\d+)?$/i);
-            if (match) {
-                const value1 = parseInt(match[1]);
-                const unit = match[2].toLowerCase();
-                const value2 = match[3] ? parseInt(match[3]) : 0;
-                if (unit === 'h') {
-                    return { hours: value1, minutes: value2, seconds: 0 };
-                } else if (unit === 'm') {
-                    return { hours: 0, minutes: value1, seconds: value2 };
-                } else if (unit === 's') {
-                    return { hours: 0, minutes: 0, seconds: value1 };
-                }
-            }
+            if (!match) return {h: NaN, m: NaN, s: NaN};
+            const [_, val1, unit, val2] = match, v1 = parseInt(val1), v2 = parseInt(val2 || 0);
+            return unit.toLowerCase() === 'h' ? {h: v1, m: v2, s: 0} : 
+                   unit === 'm' ? {h: 0, m: v1, s: v2} : 
+                   {h: 0, m: 0, s: v1};
+        };
 
-            return { hours: NaN, minutes: NaN, seconds: NaN };
-        }
+        const addTimer = (h, m, s, name) => {
+            const end = Date.now() + (h * 3600000 + m * 60000 + s * 1000);
+            createTimer(name, end);
+        };
 
-        function getTimerName(words) {
-            return words.slice(1).join(' ');
-        }
+        const createTimer = (name, end) => {
+            const li = document.createElement('li'), span = document.createElement('span');
+            li.innerHTML = `${name}: `; span.className = 'remaining-time'; li.appendChild(span);
+            const localTimeSpan = document.createElement('span'); li.appendChild(localTimeSpan);
+            timerList.appendChild(li);
 
-        function addTimer(hours, minutes, seconds, name) {
-            const endTimestamp = new Date().getTime() + (hours * 3600000 + minutes * 60000 + seconds * 1000);
-            createTimer(name, endTimestamp);
-        }
-
-        function addTimerWithTime(hours, minutes, isPM, name) {
-            let adjustedHours = hours;
-            if (isPM && hours !== 12) {
-                adjustedHours += 12;
-            }
-            const now = new Date();
-            const alarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), adjustedHours, minutes);
-            if (alarmTime < now) {
-                alarmTime.setDate(alarmTime.getDate() + 1);
-            }
-            const endTimestamp = alarmTime.getTime();
-            createTimer(name, endTimestamp);
-        }
-
-        function createTimer(name, endTimestamp) {
-            const li = document.createElement('li');
-            li.textContent = `${name}: `;
-            const span = document.createElement('span');
-            span.className = 'remaining-time';
-            li.appendChild(span);
-            
-            // New span for displaying local time
-            const localTimeSpan = document.createElement('span');
-            localTimeSpan.className = 'local-time';
-            li.appendChild(localTimeSpan);
-
-            timerListElement.appendChild(li);
-
-            const updateTimer = () => {
-                const remainingTime = Math.max(endTimestamp - new Date().getTime(), 0);
-                const remainingHours = Math.floor(remainingTime / 3600000);
-                const remainingMinutes = Math.floor((remainingTime % 3600000) / 60000);
-                const remainingSeconds = Math.floor((remainingTime % 60000) / 1000);
-                
-                // Update countdown
-                span.textContent = `${remainingHours}h ${remainingMinutes}m ${remainingSeconds}s`;
-
-                // Calculate local time when timer will ring
-                const ringTime = new Date(endTimestamp);
-                const localTimeString = ringTime.toLocaleTimeString();
-
-                // Update local time display
-                localTimeSpan.textContent = ` (${localTimeString})`;
-
-                if (remainingTime > 0) {
-                    requestAnimationFrame(updateTimer);
-                } else {
-                    span.textContent = "Time's up!";
-                    localTimeSpan.textContent = ''; // Clear local time display
-                    currentAlarms--;
-                    setTimeout(() => {
-                        timerListElement.removeChild(li);
-                    }, 2000);
-                }
+            const update = () => {
+                const remaining = Math.max(end - Date.now(), 0), h = Math.floor(remaining / 3600000),
+                      m = Math.floor((remaining % 3600000) / 60000), s = Math.floor((remaining % 60000) / 1000);
+                span.textContent = `${h}h ${m}m ${s}s`;
+                localTimeSpan.textContent = ` (${new Date(end).toLocaleTimeString()})`;
+                if (remaining > 0) requestAnimationFrame(update); 
+                else { span.textContent = "Time's up!"; alarms--; setTimeout(() => timerList.removeChild(li), 2000); }
             };
+            update();
+        };
 
-            updateTimer();
-        }
+        const handleKeyUp = (e) => {
+            if (e.key !== 'Enter' || !e.target.value.trim()) return;
+            if (alarms >= MAX_ALARMS) return alert('Max alarms reached!'), e.target.value = '';
+            const input = e.target.value.split(/\s+/), time = parseTime(input[0]);
+            if (!isNaN(time.h)) return addTimer(time.h, time.m, time.s, input.slice(1).join(' ')), alarms++, e.target.value = '';
+            document.getElementById('output').innerHTML = input.join(' '); e.target.value = '';
+        };
     </script>
 </body>
-
 </html>
